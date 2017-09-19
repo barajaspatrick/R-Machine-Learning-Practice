@@ -1,0 +1,136 @@
+---
+title: "LinearRegression Practice"
+author: "Patrick Barajas"
+date: "9/16/2017"
+output: html_document
+---
+
+```{r}
+library(ggplot2); library(dplyr); library(ggthemes)
+library(corrgram); library(corrplot)
+```
+
+```{r}
+df <- read.csv("./student/student-mat.csv", sep = ";")
+head(df, 4)
+```
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+any(is.na(df))
+str(df)
+## note: sometimes it might be worth going bakc into the data and changing
+## some variables from a factor to variable and the reverse might also be true
+## sometimes different classes of variables work better with different models.
+```
+```{r}
+## num only columns
+num.cols <- sapply(df, is.numeric)
+# filter
+cor.data<-cor(df[ ,num.cols])
+print(cor.data)
+```
+The data above it useful to determine correlatrions between variables, but it might be more useful
+to visualize this data.
+```{r}
+print(corrplot(cor.data, method = 'color'))
+```
+```{r, fig.height=13, fig.width=13}
+# corrgram(df, order = TRUE, lower.panel = panel.shade, upper.panel = panel.pie,
+#          text.panel = panel.txt)
+# ## how filled in the correlation pie is how related they are; full pie = perfect correlation.
+#pairs(df, pch = 21)
+```
+
+```{r}
+ggplot(df, aes(x = G3))+
+        geom_histogram(bins = 20, alpha = 0.5, fill = "blue")
+```
+## Part two linear Regression
+1) split data into train and test set.
+
+```{r}
+library(caTools)
+set.seed(101)
+
+## split up the sample
+sample <- sample.split(df$G3, SplitRatio = 0.7)
+## 70% of data -> train
+train <- subset(df, sample == TRUE)
+## 30% will be test
+test <- subset(df,sample == FALSE)
+```
+### Building the model:
+remember: model <- lm(y~. , data)## uses all features in the model
+
+```{r}
+## train and build:
+model <- lm(G3 ~ ., data = train)
+
+## run model
+
+## interpret the model.
+print(summary(model))
+```
+Residuals tell you the difference between the predicted values and the actual values of the the data. The little stars tells you if the coefficients are valuable for our model.
+
+## Ploting residuals of model.
+```{r}
+res <- residuals(model)
+head(res)
+```
+```{r}
+res <- as.data.frame(res)
+ggplot(res, aes(res)) + geom_histogram(fill = "blue", alpha = .5)
+```
+```{r}
+plot(model)
+```
+
+## Predictions
+```{r}
+G3.predictions <- predict(model, test)
+results <- cbind(G3.predictions, test$G3)
+colnames(results) <- c('predicted', 'actual')
+
+results <- as.data.frame(results)
+print(head(results))
+```
+
+## fixing negative predictions
+```{r}
+to_zero <- function(x){
+        if (x < 0){
+                return(0)
+        } else{
+                return(x)
+        }
+}
+## take care of negative values
+results$predicted <- sapply(results$predicted, to_zero)
+```
+
+## evaluating our model
+```{r}
+mse <- mean((results$actual - results$predicted)^2)
+print("MSE")
+print(mse)
+
+## RMSE
+print("RMSE")
+print(mse^0.5)
+```
+
+```{r}
+SSE <- sum((results$predicted - results$actual)^2)
+SST <- sum((mean(df$G3) - results$actual)^2)
+
+R2 <- 1 - SSE/SST
+print('R2')
+print(R2)
+```
+R^2 of .80 means that our model accounts for 80% of the data.

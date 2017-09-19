@@ -1,0 +1,127 @@
+---
+title: "Neural Networks"
+author: "Patrick Barajas"
+date: "9/18/2017"
+output: html_document
+---
+First install Package "MASS"
+```{r Install MASS}
+library(MASS)
+```
+
+```{r Boston df}
+head(Boston)
+```
+
+```{r}
+data <- Boston
+```
+### Normalize Data
+In order to train a neural network we need to first reprocess our data. Normalizing our data is a good idea.
+```{r}
+## lets take a look at the maximum values for each column
+maxs <- apply(data, 2, max)
+maxs
+```
+
+```{r}
+mins <- apply(data, 2, min)
+mins
+```
+
+```{r}
+## for every data point subtract the minimum value then divide
+## by the difference beteen the min and max value of each column
+scaled.data <- scale(data, center = mins, scale = maxs-mins)
+```
+
+```{r}
+## scale returns a matrix so lets convert it back into a data frame
+scaled <- as.data.frame(scaled.data)
+head(scaled)
+```
+
+## splititng into testing and training data
+```{r}
+library(caTools)
+```
+
+```{r}
+split <- sample.split(scaled$medv, SplitRatio = 0.7)
+train <- subset(scaled, split == TRUE)
+test <- subset(scaled, split == FALSE)
+```
+
+```{r}
+library(neuralnet)
+```
+
+```{r}
+## Neural nets requires us to paste each column name individualy. We can avoid
+## alot of work by just grabbing the cnames off of the 'train' df. 
+n <- names(train)
+f <- as.formula(paste("medv ~", paste(n[!n %in% "medv"], collapse = "+")))
+f
+```
+
+## Training our Neural Network
+```{r}
+## the Goal of our neural network is to adjust the weights in such a way to minimize error
+nn <- neuralnet(f, data = train, hidden = c(5, 3), linear.output = TRUE)
+        ## would set linear output to false if doing classification 
+```
+
+```{r}
+plot(nn)
+```
+
+## Predicting Values
+```{r}
+predicted.nn.values <- compute(nn, test[1:13])
+## str(predicted.nn.values)
+## compute gives us back a list of neurons with their properties along with a
+## 'net result' property.
+```
+
+```{r}
+## remember we scaled the values inorder to train our model. We want to unscale our predictions now
+## this will result in unweighted prediction from the weighted features
+true.predictions <- predicted.nn.values$net.result*(max(data$medv)-min(data$medv))+
+        min(data$medv)
+```
+
+## Convert the test data
+```{r}
+test.r <- (test$medv)*(max(data$medv)-min(data$medv))+
+        min(data$medv)
+```
+
+```{r}
+## We can take a look at our testing predictions vs true results:
+head(true.predictions, 5)
+head(as.matrix(test.r), 5)
+```
+
+```{r}
+MSE.nn <- sum((test.r - true.predictions)^2)/nrow(test)
+MSE.nn
+```
+
+```{r}
+MeanError = (MSE.nn)^0.5
+MeanError
+```
+
+## Visualize error
+We can visualize this error with ggplot2 by comparing it to the actual test data.
+```{r}
+error.df <- data.frame(test.r, true.predictions)
+```
+```{r}
+library(ggplot2)
+```
+
+```{r}
+ggplot(error.df, aes(x = test.r, y = true.predictions))+geom_point()+ stat_smooth()
+```
+

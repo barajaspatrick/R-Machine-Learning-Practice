@@ -1,0 +1,127 @@
+---
+title: "Logistic Regression"
+author: "Patrick Barajas"
+date: "9/17/2017"
+output: html_document
+---
+
+## Logistic Regression Practice
+
+```{r}
+df.train <- read.csv("titanic_train.csv")
+head(head(df.train))
+```
+```{r}
+str(df.train)
+```
+
+```{r}
+library(Amelia) ## can plot a missingess map
+missmap(df.train, main = "Missing Map", col = c("yellow", "black"), legend = FALSE)
+```
+
+```{r}
+library(ggplot2)
+ggplot(df.train, aes(Survived)) + geom_bar(aes(fill = factor(Pclass)))
+```
+```{r}
+ggplot(df.train, aes(Sex))+geom_bar(aes(fill = factor(Sex)))
+```
+
+## Data Cleaning
+Alot of the age data is missing in our training data frame. We can fill in the data in this column by age
+```{r}
+g1 <- ggplot(df.train, aes(Pclass, Age))+
+        geom_boxplot(aes(group = Pclass,fill = factor(Pclass),alpha = 0.4))+
+        scale_y_continuous(breaks = seq(min(0), max(80, by = 2)))+
+        theme_bw()
+g1
+```
+Here we can see the importance of separating by class.
+```{r}
+## function for replacing missing age cells by class column.
+impute_age <- function(age, class){
+        out <- age
+        for (i in 1:length(age)){
+                if (is.na(age[i])){
+                        if (class[i] == 1){
+                                out[i] <- 37
+                        }else if(class[i] == 2){
+                                out[i] <- 29
+                        }else{
+                                out[i] <- 24
+                        }
+                }else{
+                        out[i] <- age[i]
+                }
+        }
+        return(out)
+}
+```
+
+```{r}
+fixed.age <- impute_age(df.train$Age, df.train$Pclass)
+```
+
+```{r}
+df.train$Age <- fixed.age
+missmap(df.train, main = "Imputation Check", col = c("yellow", "black"), legend = FALSE)
+```
+
+```{r}
+str(df.train)
+```
+```{r}
+library(dplyr)
+df.train <- select(df.train, -PassengerId, -Name, -Ticket, -Cabin)
+```
+```{r}
+head(df.train)
+```
+converting columns to factors
+```{r}
+df.train$Survived <- factor(df.train$Survived)
+df.train$Pclass <- factor(df.train$Pclass)
+df.train$Parch <- factor(df.train$Parch)
+df.train$SibSp <- factor(df.train$SibSp)
+str(df.train)
+```
+
+## Building the model
+```{r}
+log.model <- glm(Survived ~ ., family = binomial(link = "logit"), data = df.train)
+```
+
+```{r}
+summary(log.model)
+```
+
+## Predictions
+```{r}
+library(caTools)
+set.seed(101)
+split <- sample.split(df.train$Survived, SplitRatio =  0.7)
+final.train <- subset(df.train, split == TRUE)
+final.test <- subset(df.train, split == FALSE)
+```
+
+```{r}
+final.log.model <- glm(Survived ~ ., family = binomial(link = "logit"), data = final.train)
+```
+
+```{r}
+summary(final.log.model)
+```
+
+```{r}
+fitted.probabilities <- predict(final.log.model, final.test, type = 'response')
+## use response because we are tring to predict a 1 or 0 response
+fitted.restults <- ifelse(fitted.probabilities >0.5,1,0)
+misClassError <- mean(fitted.restults != final.test$Survived)
+print(1-misClassError)
+```
+### Confusion Matrix
+```{r}
+table(final.test$Survived,  fitted.probabilities >0.5)
+```
+

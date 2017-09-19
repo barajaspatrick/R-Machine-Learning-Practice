@@ -1,0 +1,39 @@
+---
+title: "K-Mean Clustering"
+author: "Patrick Barajas"
+date: "9/18/2017"
+output: html_document
+---
+
+
+
+
+
+
+```{r}
+library(ISLR)
+print(head(iris))
+```
+
+```{r}
+library(ggplot2)
+```
+```{r}
+p1 <- ggplot(iris, aes(Petal.Length, Petal.Width, color = Species)) + 
+        geom_point(size = 2)
+p1
+```
+
+```{r}
+set.seed(101)
+irisCluster <- kmeans(iris[,4:3], 3, nstart = 20)
+```
+
+```{r}
+print(irisCluster)
+```
+
+If we want to evaluate how well our model did we can compare our predictions to the true values:
+```{r}
+table(irisCluster$cluster, iris$Species)
+```
